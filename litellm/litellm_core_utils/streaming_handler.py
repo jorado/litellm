@@ -810,6 +810,11 @@ class CustomStreamWrapper:
                 "annotations" in model_response.choices[0].delta
                 and model_response.choices[0].delta.annotations is not None
             )
+            or (
+                response_obj.get("original_chunk") is not None
+                and len(response_obj["original_chunk"].choices) > 0
+                and getattr(response_obj["original_chunk"].choices[0].delta, "reasoning_content", None) is not None
+            )
         ):
             return True
         else:

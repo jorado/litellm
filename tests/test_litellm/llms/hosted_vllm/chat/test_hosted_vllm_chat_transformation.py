@@ -257,3 +257,39 @@ def test_hosted_vllm_thinking_blocks_with_list_content():
     }
     assert assistant_msg["content"][2] == {"type": "text", "text": "Response text"}
     assert "thinking_blocks" not in assistant_msg
+
+
+def test_is_chunk_non_empty_with_reasoning_in_original_chunk():
+    """
+    Test that is_chunk_non_empty() returns True when the original_chunk
+    has reasoning_content but completion_obj has empty content.
+
+    Core fix for https://github.com/BerriAI/litellm/issues/20246
+    """
+    from litellm.litellm_core_utils.streaming_handler import CustomStreamWrapper
+    from litellm.types.utils import Delta, ModelResponseStream, StreamingChoices
+
+    wrapper = CustomStreamWrapper.__new__(CustomStreamWrapper)
+
+    model_response = ModelResponseStream(
+        choices=[StreamingChoices(delta=Delta(), finish_reason=None)]
+    )
+    original_chunk = ModelResponseStream(
+        choices=[
+            StreamingChoices(
+                delta=Delta(reasoning_content="Let me think..."),
+                finish_reason=None,
+            )
+        ],
+    )
+
+    # Reasoning-only chunk: empty content but original_chunk has reasoning_content
+    assert wrapper.is_chunk_non_empty(
+        {"content": ""}, model_response, {"original_chunk": original_chunk}
+    ) is True
+
+    # Truly empty chunk: should still be False
+    assert wrapper.is_chunk_non_empty(
+        {"content": ""}, model_response, {}
+    ) is False
+
